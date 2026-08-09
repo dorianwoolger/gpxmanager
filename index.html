@@ -1,0 +1,2230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raymarine GPX Manager</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --lime: #C9DA2B;
+    --dark: #464648;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--dark);
+    color: var(--dark);
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  header {
+    background: #ffffff;
+    border-bottom: 4px solid var(--lime);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header .brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--dark);
+    letter-spacing: 0.5px;
+  }
+  header .brand span {
+    color: var(--lime);
+    background: var(--dark);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 8px;
+  }
+  header .stats {
+    font-size: 0.85rem;
+    color: #6a6a6c;
+  }
+  #main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  #map {
+    flex: 1;
+    min-width: 0;
+  }
+  #sidebar {
+    width: 300px;
+    background: #ffffff;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  #sidebar h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #888;
+    margin: 14px 14px 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #sidebar h2 .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  #sidebar h2 .hdr-label {
+    flex: 1;
+    min-width: 0;
+  }
+  #sidebar h2 .hdr-edit,
+  #sidebar h2 .hdr-delete {
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+  #sidebar h2 .hdr-edit { color: #2980b9; }
+  #sidebar h2 .hdr-delete { color: #c0392b; font-weight: 700; }
+  .item {
+    padding: 7px 14px 7px 22px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    font-size: 0.86rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .item:hover {
+    background: #fbfce0;
+  }
+  .item .swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .item .name {
+    flex: 1;
+    color: var(--dark);
+  }
+  .item .meta {
+    font-size: 0.7rem;
+    color: #999;
+  }
+  .leaflet-popup-content-wrapper {
+    border-radius: 6px;
+  }
+  .popup-title {
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 2px;
+  }
+  .popup-meta {
+    font-size: 0.78rem;
+    color: #777;
+  }
+  .popup-group {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 10px;
+    color: #fff;
+  }
+  .popup-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 6px;
+  }
+  .popup-actions button {
+    font-family: inherit;
+    font-size: 0.75rem;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 11px;
+    cursor: pointer;
+    color: #fff;
+  }
+  .popup-edit-btn { background: #2980b9; }
+  .popup-delete-btn { background: #c0392b; }
+  #layer-toggle {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    max-width: 210px;
+  }
+  #layer-toggle .section-label {
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin: 8px 0 4px;
+  }
+  #layer-toggle .section-label:first-child {
+    margin-top: 0;
+  }
+  #layer-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0;
+    cursor: pointer;
+    color: var(--dark);
+  }
+  #layer-toggle label .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  @media (max-width: 700px) {
+    #sidebar { display: none; }
+  }
+  #left-tools {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 250px;
+  }
+  #import-panel, #waypoint-panel, #route-panel, #export-panel {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #import-panel {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  #import-panel .section-label {
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin: 0 0 6px;
+  }
+  #import-panel button {
+    font-family: inherit;
+    font-size: 0.78rem;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin: 2px 0;
+    color: #fff;
+    background: var(--dark);
+    width: 100%;
+  }
+  #route-panel {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  #route-panel .section-label {
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin: 0 0 6px;
+  }
+  #route-panel button {
+    font-family: inherit;
+    font-size: 0.78rem;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin: 2px 4px 2px 0;
+    color: #fff;
+  }
+  #btn-start-route { background: var(--dark); width: 100%; }
+  #btn-finish-route { background: #1f7a3d; }
+  #btn-undo-point { background: #999; }
+  #btn-cancel-route { background: #c0392b; }
+  #btn-export-gpx { background: var(--lime); color: var(--dark); font-weight: 700; width: 100%; margin-top: 8px; }
+  #export-panel {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  #export-panel .section-label {
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin: 0 0 6px;
+  }
+  #export-panel button {
+    font-family: inherit;
+    font-size: 0.78rem;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin: 2px 0;
+    color: var(--dark);
+    background: var(--lime);
+    font-weight: 700;
+    width: 100%;
+    display: block;
+  }
+  #btn-export-routes, #btn-export-waypoints {
+    background: #eef1c9;
+  }
+  #route-hint {
+    color: #888;
+    font-size: 0.72rem;
+    margin: 4px 0 6px;
+    line-height: 1.3;
+  }
+  #route-point-count {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--dark);
+    font-weight: 600;
+  }
+  #route-point-list {
+    max-height: 130px;
+    overflow-y: auto;
+    margin-bottom: 6px;
+  }
+  .route-point-chip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    padding: 2px 0;
+    color: var(--dark);
+  }
+  .route-point-chip .rm {
+    color: #c0392b;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 0 4px;
+  }
+  .saved-route-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .saved-route-item .rm-route {
+    color: #c0392b;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 0 4px;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+  .saved-route-item .edit-route {
+    color: #2980b9;
+    cursor: pointer;
+    padding: 0 4px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .item .edit-wpt {
+    color: #2980b9;
+    cursor: pointer;
+    padding: 0 4px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .item .rm-wpt {
+    color: #c0392b;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 0 4px;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+  #map.route-building {
+    cursor: crosshair;
+  }
+  #waypoint-panel {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+  #waypoint-panel .section-label {
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin: 0 0 6px;
+  }
+  #waypoint-panel .wp-btn {
+    font-family: inherit;
+    font-size: 0.78rem;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin: 2px 4px 2px 0;
+    color: #fff;
+    background: var(--dark);
+    width: 100%;
+  }
+  #btn-new-group { background: #2980b9; }
+  #waypoint-hint {
+    color: #888;
+    font-size: 0.72rem;
+    margin: 4px 0 6px;
+    line-height: 1.3;
+    display: none;
+  }
+  #map.waypoint-adding {
+    cursor: copy;
+  }
+
+  /* Modal dialog used in place of native alert()/confirm()/prompt() */
+  #dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 4000;
+    align-items: center;
+    justify-content: center;
+  }
+  #dialog-box {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px 22px;
+    width: 340px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    font-family: inherit;
+  }
+  #dialog-message {
+    color: var(--dark);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre-line;
+    margin-bottom: 4px;
+  }
+  #dialog-input-wrap {
+    margin-top: 12px;
+  }
+  #dialog-actions button.btn-danger {
+    background: #c0392b;
+    color: #fff;
+  }
+
+  /* Waypoint edit form fields (docked panel, not a modal) */
+  #waypoint-form-panel {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+  }
+  .form-field {
+    display: block;
+    margin-bottom: 12px;
+  }
+  .form-field .form-label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .form-field input[type="text"],
+  .form-field input[type="number"],
+  .form-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 8px;
+    font-size: 0.86rem;
+    font-family: inherit;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    color: var(--dark);
+  }
+  .form-row {
+    display: flex;
+    gap: 6px;
+  }
+  .form-row .form-field {
+    flex: 1;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .modal-actions button {
+    font-family: inherit;
+    font-size: 0.82rem;
+    border: none;
+    border-radius: 4px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  .modal-actions .btn-cancel {
+    background: #eee;
+    color: var(--dark);
+  }
+  .modal-actions .btn-save {
+    background: var(--lime);
+    color: var(--dark);
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><span>NAIROD</span>GPX Manager</div>
+    <div class="stats" id="stats"></div>
+  </header>
+  <div id="main">
+    <div id="map">
+      <div id="layer-toggle">
+        <div class="section-label">Chart</div>
+        <label><input type="checkbox" id="chk-seamarks" checked> Seamarks (OpenSeaMap)</label>
+        <div class="section-label">Overlays</div>
+        <label><input type="checkbox" id="chk-routes" checked> Routes</label>
+        <label><input type="checkbox" id="chk-tracks" checked> Tracks</label>
+        <div class="section-label">Waypoint groups</div>
+        <div id="group-toggles"></div>
+      </div>
+      <div id="left-tools">
+      <div id="import-panel">
+        <div class="section-label">Import</div>
+        <input type="file" id="file-import" accept=".gpx" style="display:none">
+        <button id="btn-import-gpx">Import GPX File</button>
+      </div>
+      <div id="waypoint-panel">
+        <div class="section-label">Waypoints</div>
+        <div id="waypoint-hint">Click the chart to place a point.</div>
+        <button id="btn-new-waypoint" class="wp-btn">+ New Waypoint</button>
+        <button id="btn-new-group" class="wp-btn">+ New Group</button>
+
+        <div id="waypoint-form-panel" style="display:none;">
+          <div class="section-label" id="wf-panel-title" style="margin-top:10px;">New Waypoint</div>
+          <div class="form-field">
+            <span class="form-label">Name</span>
+            <input type="text" id="wf-name">
+          </div>
+          <div class="form-field">
+            <span class="form-label">Latitude</span>
+            <div class="form-row" style="align-items:flex-end;">
+              <div class="form-field" style="flex:0 0 52px;margin-bottom:0;">
+                <input type="number" step="1" min="0" id="wf-lat-deg" title="Degrees">
+              </div>
+              <span style="padding-bottom:8px;">°</span>
+              <div class="form-field" style="flex:1;margin-bottom:0;">
+                <input type="number" step="0.001" min="0" max="59.999" id="wf-lat-min" title="Minutes">
+              </div>
+              <span style="padding-bottom:8px;">'</span>
+              <div class="form-field" style="flex:0 0 50px;margin-bottom:0;">
+                <select id="wf-lat-hemi" title="Hemisphere">
+                  <option value="N">N</option>
+                  <option value="S">S</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="form-field">
+            <span class="form-label">Longitude</span>
+            <div class="form-row" style="align-items:flex-end;">
+              <div class="form-field" style="flex:0 0 52px;margin-bottom:0;">
+                <input type="number" step="1" min="0" id="wf-lon-deg" title="Degrees">
+              </div>
+              <span style="padding-bottom:8px;">°</span>
+              <div class="form-field" style="flex:1;margin-bottom:0;">
+                <input type="number" step="0.001" min="0" max="59.999" id="wf-lon-min" title="Minutes">
+              </div>
+              <span style="padding-bottom:8px;">'</span>
+              <div class="form-field" style="flex:0 0 50px;margin-bottom:0;">
+                <select id="wf-lon-hemi" title="Hemisphere">
+                  <option value="E">E</option>
+                  <option value="W">W</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:0.72rem;color:#888;margin:-4px 0 10px;">Drag the orange pin on the chart to reposition. Map stays pannable/zoomable.</div>
+          <div class="form-field">
+            <span class="form-label">Symbol</span>
+            <select id="wf-sym"></select>
+          </div>
+          <div class="form-field">
+            <span class="form-label">Group</span>
+            <select id="wf-group"></select>
+          </div>
+          <div class="form-field" id="wf-newgroup-wrap" style="display:none;">
+            <span class="form-label">New group name</span>
+            <input type="text" id="wf-newgroup">
+          </div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button type="button" class="btn-save" id="wf-save">Save</button>
+            <button type="button" class="btn-cancel" id="wf-cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <div id="route-panel">
+        <div class="section-label">Route builder</div>
+        <div id="route-hint">Click "New Route", then click waypoints or the chart to add points in order.</div>
+        <button id="btn-start-route">+ New Route</button>
+        <div id="route-build-status" style="display:none">
+          <div class="form-field" style="margin-bottom:8px;">
+            <span class="form-label">Route name</span>
+            <input type="text" id="route-name-input" style="width:100%;box-sizing:border-box;padding:5px 7px;font-size:0.8rem;border:1px solid #ccc;border-radius:4px;">
+          </div>
+          <span id="route-point-count">0 points</span>
+          <div id="route-point-list"></div>
+          <button id="btn-undo-point">Undo last</button>
+          <button id="btn-finish-route">Finish</button>
+          <button id="btn-cancel-route">Cancel</button>
+        </div>
+      </div>
+      <div id="export-panel">
+        <div class="section-label">Export GPX</div>
+        <button id="btn-export-all">Export All</button>
+        <button id="btn-export-routes">Export Routes</button>
+        <button id="btn-export-waypoints">Export Waypoints</button>
+      </div>
+      </div>
+    </div>
+    <div id="sidebar"></div>
+  </div>
+</div>
+
+<div id="dialog-overlay">
+  <div id="dialog-box">
+    <div id="dialog-message"></div>
+    <div class="form-field" id="dialog-input-wrap" style="display:none;">
+      <input type="text" id="dialog-input">
+    </div>
+    <div class="modal-actions" id="dialog-actions"></div>
+  </div>
+</div>
+
+<script>
+const gpxData = { waypoints: [] };
+
+// --- Group colour palette ---
+const GROUP_ORDER = ['Good anchor spots', 'Shoreham to Fecamp', 'Solent', 'East', 'SailGP'];
+const UNGROUPED = 'Ungrouped';
+const groupColors = {
+  'Good anchor spots': '#1f7a3d',
+  'Shoreham to Fecamp': '#8e44ad',
+  'Solent': '#2980b9',
+  'East': '#c0392b',
+  'SailGP': '#e67e22',
+  [UNGROUPED]: '#7f8c8d'
+};
+
+function groupOf(w) { return w.group || UNGROUPED; }
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// Compute bounds
+let allLatLngs = [];
+gpxData.waypoints.forEach(w => allLatLngs.push([w.lat, w.lon]));
+
+const map = L.map('map', { zoomControl: true });
+if (allLatLngs.length) {
+  map.fitBounds(allLatLngs, { padding: [30,30] });
+} else {
+  map.setView([50.75, -1.1], 10);
+}
+
+// Base layer: OpenStreetMap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19
+}).addTo(map);
+
+// OpenSeaMap seamarks overlay (open-source marine chart symbols)
+const seamarks = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+  attribution: 'Seamarks &copy; <a href="https://www.openseamap.org">OpenSeaMap</a>',
+  maxZoom: 18,
+  opacity: 0.9
+}).addTo(map);
+
+// One layer group per waypoint group, so each can be toggled independently
+const groupLayers = {}; // groupName -> L.layerGroup
+function getGroupLayer(name) {
+  if (!groupLayers[name]) {
+    groupLayers[name] = L.layerGroup().addTo(map);
+  }
+  return groupLayers[name];
+}
+
+// Track the GroupGUID for every known group so newly added waypoints can
+// reference the correct group in exported GPX, and remember colours for
+// groups created at runtime.
+const groupGuidMap = {};
+gpxData.waypoints.forEach(w => {
+  if (w.group && w.groupGuid) groupGuidMap[w.group] = w.groupGuid;
+});
+
+// Sort waypoints into display groups (known order first, then any others, Ungrouped last)
+const allGroupNames = Array.from(new Set(gpxData.waypoints.map(groupOf)));
+const orderedGroups = GROUP_ORDER.filter(g => allGroupNames.includes(g))
+  .concat(allGroupNames.filter(g => !GROUP_ORDER.includes(g) && g !== UNGROUPED))
+  .concat(allGroupNames.includes(UNGROUPED) ? [UNGROUPED] : []);
+
+const sidebar = document.getElementById('sidebar');
+const groupSections = {}; // groupName -> {container, header, list, color, count}
+let nextGroupColorIndex = 0;
+const autoGroupColorPalette = ['#16a085', '#d35400', '#2c3e50', '#f39c12', '#27ae60', '#c0392b', '#8e44ad', '#2980b9'];
+
+function colorForGroup(name) {
+  if (groupColors[name]) return groupColors[name];
+  const c = autoGroupColorPalette[nextGroupColorIndex % autoGroupColorPalette.length];
+  nextGroupColorIndex++;
+  groupColors[name] = c;
+  return c;
+}
+
+// Creates (or returns the existing) sidebar section + map layer + toggle
+// checkbox for a waypoint group. Used both for the groups loaded from the
+// GPX file and for any new groups created via "+ New Group".
+function ensureGroupSection(groupName) {
+  if (groupSections[groupName]) return groupSections[groupName];
+  const color = colorForGroup(groupName);
+
+  const container = document.createElement('div');
+  container.className = 'group-section';
+  const header = document.createElement('h2');
+  header.innerHTML = `<span class="dot" style="background:${color}"></span>` +
+    `<span class="hdr-label">${escapeAttr(groupName)} (<span class="cnt">0</span>)</span>` +
+    `<span class="hdr-edit" title="Edit group">&#9998;</span>` +
+    `<span class="hdr-delete" title="Delete group">&times;</span>`;
+  header.querySelector('.hdr-edit').addEventListener('click', () => editGroup(groupName));
+  header.querySelector('.hdr-delete').addEventListener('click', () => deleteGroup(groupName));
+  container.appendChild(header);
+  const list = document.createElement('div');
+  container.appendChild(list);
+  sidebar.appendChild(container);
+
+  const layer = getGroupLayer(groupName);
+
+  const groupTogglesDiv = document.getElementById('group-toggles');
+  const label = document.createElement('label');
+  const cbId = 'grp-' + groupName.replace(/\s+/g, '-') + '-' + Math.random().toString(36).slice(2, 6);
+  label.innerHTML = `<input type="checkbox" id="${cbId}" checked><span class="dot" style="background:${color}"></span>${escapeAttr(groupName)}`;
+  groupTogglesDiv.appendChild(label);
+  label.querySelector('input').addEventListener('change', e => {
+    if (e.target.checked) map.addLayer(layer); else map.removeLayer(layer);
+  });
+
+  groupSections[groupName] = { container, header, list, color, count: 0, toggleLabel: label };
+  return groupSections[groupName];
+}
+
+// Tears down an (assumed empty) group's sidebar section, map layer, and
+// toggle checkbox — used after renaming or deleting the last of its members.
+function removeGroupSection(groupName) {
+  const s = groupSections[groupName];
+  if (!s) return;
+  if (s.container) s.container.remove();
+  if (s.toggleLabel) s.toggleLabel.remove();
+  const layer = groupLayers[groupName];
+  if (layer) {
+    map.removeLayer(layer);
+    delete groupLayers[groupName];
+  }
+  delete groupSections[groupName];
+}
+
+function bumpGroupCount(groupName, delta) {
+  const s = groupSections[groupName];
+  if (!s) return;
+  s.count += delta;
+  s.header.querySelector('.cnt').textContent = s.count;
+}
+
+function refreshStats() {
+  document.getElementById('stats').textContent =
+    `${gpxData.waypoints.length} waypoints · ${Object.keys(groupSections).length} groups · ${savedRoutes.length} routes · ${importedTracks.length} tracks`;
+}
+
+// Renders one waypoint marker + sidebar row into its group's section.
+// Reused for waypoints loaded from the GPX file and any created afterwards.
+function renderWaypoint(w) {
+  const groupName = groupOf(w);
+  const section = ensureGroupSection(groupName);
+  const color = section.color;
+  const layer = getGroupLayer(groupName);
+
+  const marker = L.circleMarker([w.lat, w.lon], {
+    radius: 6,
+    fillColor: color,
+    color: '#fff',
+    weight: 1.5,
+    fillOpacity: 0.95
+  }).addTo(layer);
+
+  const popupHtml = `
+    <div class="popup-title">${w.name || 'Unnamed waypoint'}</div>
+    <div class="popup-meta">${w.sym || ''}${w.cmt ? ' — ' + w.cmt : ''}</div>
+    <div class="popup-meta">${fmtDate(w.time)}</div>
+    <div class="popup-meta">${w.lat.toFixed(5)}, ${w.lon.toFixed(5)}</div>
+    <div class="popup-group" style="background:${color}">${groupName}</div>
+    <div class="popup-actions">
+      <button type="button" class="popup-edit-btn">Edit</button>
+      <button type="button" class="popup-delete-btn">Delete</button>
+    </div>
+  `;
+  marker.bindPopup(popupHtml);
+  marker.on('popupopen', () => {
+    const el = marker.getPopup().getElement();
+    if (!el) return;
+    const editBtn = el.querySelector('.popup-edit-btn');
+    const delBtn = el.querySelector('.popup-delete-btn');
+    if (editBtn) editBtn.onclick = () => { marker.closePopup(); editWaypoint(w); };
+    if (delBtn) delBtn.onclick = async () => {
+      marker.closePopup();
+      if (await showConfirm(`Delete waypoint "${w.name}"?`, 'Delete', 'Cancel')) deleteWaypoint(w);
+    };
+  });
+  // Take full control of the click behaviour so we can either open the
+  // popup (normal mode) or append this waypoint to the route being built.
+  marker.off('click');
+  marker.on('click', (e) => {
+    if (buildMode) {
+      addRoutePoint({
+        lat: w.lat, lon: w.lon, name: w.name, sym: w.sym,
+        time: w.time, group: w.group, guid: w.guid, groupGuid: w.groupGuid,
+        _owned: false // linked to a pre-existing waypoint — moving it prompts rather than auto-syncing
+      });
+    } else {
+      marker.openPopup();
+    }
+    L.DomEvent.stopPropagation(e);
+  });
+
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.innerHTML = `<span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+      <span class="swatch" style="background:${color}"></span>
+      <span class="name">${w.name || 'Unnamed'}</span>
+      <span class="meta">${w.sym || ''}</span>
+    </span>
+    <span class="edit-wpt" title="Edit waypoint">&#9998;</span>
+    <span class="rm-wpt" title="Delete waypoint">&times;</span>`;
+  item.addEventListener('click', (ev) => {
+    if (ev.target.classList.contains('edit-wpt') || ev.target.classList.contains('rm-wpt')) return;
+    map.setView([w.lat, w.lon], 14);
+    marker.openPopup();
+  });
+  item.querySelector('.edit-wpt').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    editWaypoint(w);
+  });
+  item.querySelector('.rm-wpt').addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    if (await showConfirm(`Delete waypoint "${w.name}"?`, 'Delete', 'Cancel')) deleteWaypoint(w);
+  });
+
+  w._marker = marker;
+  w._item = item;
+  section.list.appendChild(item);
+  bumpGroupCount(groupName, 1);
+}
+
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// =========================================================================
+// Dialog system — replaces native alert()/confirm()/prompt() with a
+// styled modal that has clearly-labelled buttons instead of generic OK/Cancel.
+// =========================================================================
+const dialogOverlay = document.getElementById('dialog-overlay');
+const dialogMessage = document.getElementById('dialog-message');
+const dialogInputWrap = document.getElementById('dialog-input-wrap');
+const dialogInput = document.getElementById('dialog-input');
+const dialogActions = document.getElementById('dialog-actions');
+
+// buttons: [{ label, value, primary, danger }, ...]
+// withInput: null, or { defaultValue } to show a text field
+function showDialog(message, buttons, withInput) {
+  return new Promise((resolve) => {
+    dialogMessage.textContent = message;
+    dialogActions.innerHTML = '';
+
+    if (withInput) {
+      dialogInputWrap.style.display = 'block';
+      dialogInput.value = withInput.defaultValue || '';
+    } else {
+      dialogInputWrap.style.display = 'none';
+    }
+
+    function finish(value) {
+      dialogOverlay.style.display = 'none';
+      resolve(value);
+    }
+
+    buttons.forEach(btn => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = btn.label;
+      b.className = btn.danger ? 'btn-danger' : (btn.primary ? 'btn-save' : 'btn-cancel');
+      b.addEventListener('click', () => {
+        finish(btn.value === '__input__' ? dialogInput.value : btn.value);
+      });
+      dialogActions.appendChild(b);
+    });
+
+    dialogOverlay.style.display = 'flex';
+    if (withInput) {
+      dialogInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const primaryBtn = buttons.find(b => b.primary);
+          if (primaryBtn) finish(primaryBtn.value === '__input__' ? dialogInput.value : primaryBtn.value);
+        }
+      };
+      setTimeout(() => { dialogInput.focus(); dialogInput.select(); }, 0);
+    }
+  });
+}
+
+// Replaces alert(message). Resolves once dismissed.
+function showAlert(message, okLabel) {
+  return showDialog(message, [{ label: okLabel || 'OK', value: true, primary: true }]);
+}
+
+// Replaces confirm(message). Resolves true/false. Custom button labels
+// make the choice clearer than generic OK/Cancel.
+function showConfirm(message, okLabel, cancelLabel) {
+  return showDialog(message, [
+    { label: cancelLabel || 'Cancel', value: false },
+    { label: okLabel || 'OK', value: true, primary: true }
+  ]);
+}
+
+// Replaces prompt(message, defaultValue). Resolves the entered string, or
+// null if cancelled.
+function showPrompt(message, defaultValue, okLabel, cancelLabel) {
+  return showDialog(message, [
+    { label: cancelLabel || 'Cancel', value: null },
+    { label: okLabel || 'OK', value: '__input__', primary: true }
+  ], { defaultValue: defaultValue || '' });
+}
+
+// =========================================================================
+// Degrees / decimal-minutes lat-lon helpers (DD°MM.MMM')
+// =========================================================================
+function decToDDM(dec) {
+  const abs = Math.abs(dec);
+  let deg = Math.floor(abs);
+  let min = Math.round((abs - deg) * 60 * 1000) / 1000;
+  if (min >= 60) { min -= 60; deg += 1; }
+  return { deg, min };
+}
+function ddmToDec(deg, min, hemi) {
+  let dec = deg + (min / 60);
+  if (hemi === 'S' || hemi === 'W') dec = -dec;
+  return dec;
+}
+// Reads the deg/min/hemisphere trio for a given field prefix ('wf-lat' or 'wf-lon').
+// Returns a decimal degree value, or null if the inputs are invalid/out of range.
+function readDDMField(prefix, isLat) {
+  const deg = parseFloat(document.getElementById(`${prefix}-deg`).value);
+  const min = parseFloat(document.getElementById(`${prefix}-min`).value);
+  const hemi = document.getElementById(`${prefix}-hemi`).value;
+  if (isNaN(deg) || isNaN(min) || deg < 0 || min < 0 || min >= 60) return null;
+  if (isLat && deg > 90) return null;
+  if (!isLat && deg > 180) return null;
+  return ddmToDec(deg, min, hemi);
+}
+function setDDMFieldValues(prefix, dec, positiveHemi, negativeHemi) {
+  const parts = decToDDM(dec);
+  document.getElementById(`${prefix}-deg`).value = parts.deg;
+  document.getElementById(`${prefix}-min`).value = parts.min.toFixed(3);
+  document.getElementById(`${prefix}-hemi`).value = dec < 0 ? negativeHemi : positiveHemi;
+}
+
+// =========================================================================
+// Draggable "edit position" marker — only exists while the waypoint panel is open
+// =========================================================================
+let editDragMarker = null;
+let editDragOriginal = null; // { w, layer } — set only when editing an existing waypoint
+
+function dragHandleIcon() {
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;border-radius:50%;background:#e67e22;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.5);"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+}
+
+function beginWaypointDrag(lat, lon, existingW) {
+  if (existingW) {
+    const layer = getGroupLayer(groupOf(existingW));
+    if (existingW._marker) layer.removeLayer(existingW._marker);
+    editDragOriginal = { w: existingW, layer };
+  } else {
+    editDragOriginal = null;
+  }
+  editDragMarker = L.marker([lat, lon], { draggable: true, icon: dragHandleIcon() }).addTo(map);
+  editDragMarker.on('drag', (e) => {
+    const pos = e.target.getLatLng();
+    setDDMFieldValues('wf-lat', pos.lat, 'N', 'S');
+    setDDMFieldValues('wf-lon', pos.lng, 'E', 'W');
+  });
+}
+
+// restore=true puts the original marker back untouched (used on Cancel);
+// restore=false just removes the drag handle (used after a successful Save).
+function endWaypointDrag(restore) {
+  if (editDragMarker) {
+    map.removeLayer(editDragMarker);
+    editDragMarker = null;
+  }
+  if (restore && editDragOriginal) {
+    editDragOriginal.layer.addLayer(editDragOriginal.w._marker);
+  }
+  editDragOriginal = null;
+}
+
+// =========================================================================
+// Docked waypoint edit/create panel (replaces the old modal — the map stays
+// fully pannable/zoomable while this is open).
+// =========================================================================
+let waypointFormOpen = false;
+let waypointFormContext = null; // { isEdit: true, waypoint } or { isEdit: false }
+
+const waypointFormPanel = document.getElementById('waypoint-form-panel');
+const wfPanelTitle = document.getElementById('wf-panel-title');
+const wfNameInput = document.getElementById('wf-name');
+const wfSymSelect = document.getElementById('wf-sym');
+const wfGroupSelect = document.getElementById('wf-group');
+const wfNewGroupWrap = document.getElementById('wf-newgroup-wrap');
+const wfNewGroupInput = document.getElementById('wf-newgroup');
+const wfSaveBtn = document.getElementById('wf-save');
+const wfCancelBtn = document.getElementById('wf-cancel');
+
+function populateWaypointFormSelects(currentSym, currentGroup) {
+  wfSymSelect.innerHTML = knownSymbols.map(s =>
+    `<option value="${escapeAttr(s)}" ${currentSym === s ? 'selected' : ''}>${escapeAttr(s)}</option>`
+  ).join('');
+  const groupNames = Object.keys(groupSections);
+  wfGroupSelect.innerHTML =
+    `<option value="" ${!currentGroup ? 'selected' : ''}>— None —</option>` +
+    groupNames.map(g => `<option value="${escapeAttr(g)}" ${currentGroup === g ? 'selected' : ''}>${escapeAttr(g)}</option>`).join('') +
+    `<option value="__new__">+ New group…</option>`;
+}
+
+// opts is either { mode: 'new', latlng } or { mode: 'edit', waypoint }
+function openWaypointForm(opts) {
+  endRouteBuild(); // mutual exclusion with the route builder
+
+  const isEdit = opts.mode === 'edit';
+  const w = opts.waypoint;
+  const defaults = isEdit
+    ? { name: w.name, lat: w.lat, lon: w.lon, sym: w.sym || 'Filled Circle', group: w.group }
+    : { name: 'New Waypoint', lat: opts.latlng.lat, lon: opts.latlng.lng, sym: 'Filled Circle', group: null };
+
+  waypointFormContext = isEdit ? { isEdit: true, waypoint: w } : { isEdit: false };
+
+  wfPanelTitle.textContent = isEdit ? 'Edit Waypoint' : 'New Waypoint';
+  wfNameInput.value = defaults.name;
+  setDDMFieldValues('wf-lat', defaults.lat, 'N', 'S');
+  setDDMFieldValues('wf-lon', defaults.lon, 'E', 'W');
+  populateWaypointFormSelects(defaults.sym, defaults.group);
+  wfNewGroupWrap.style.display = 'none';
+  wfNewGroupInput.value = '';
+
+  waypointFormPanel.style.display = 'block';
+  waypointFormOpen = true;
+
+  beginWaypointDrag(defaults.lat, defaults.lon, isEdit ? w : null);
+}
+
+function closeWaypointForm() {
+  waypointFormPanel.style.display = 'none';
+  waypointFormOpen = false;
+  waypointFormContext = null;
+}
+
+// These listeners are attached once (the panel is static HTML that gets
+// repopulated on each open, rather than rebuilt), so no duplicate handlers
+// accumulate across multiple edits.
+wfGroupSelect.addEventListener('change', (e) => {
+  wfNewGroupWrap.style.display = e.target.value === '__new__' ? 'block' : 'none';
+});
+
+['wf-lat-deg', 'wf-lat-min', 'wf-lat-hemi', 'wf-lon-deg', 'wf-lon-min', 'wf-lon-hemi'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (!editDragMarker) return;
+    const lat = readDDMField('wf-lat', true);
+    const lon = readDDMField('wf-lon', false);
+    if (lat !== null && lon !== null) editDragMarker.setLatLng([lat, lon]);
+  });
+});
+
+wfCancelBtn.addEventListener('click', (ev) => {
+  L.DomEvent.stopPropagation(ev);
+  endWaypointDrag(true);
+  closeWaypointForm();
+});
+
+wfSaveBtn.addEventListener('click', (ev) => {
+  L.DomEvent.stopPropagation(ev);
+  if (!waypointFormContext) return;
+
+  const name = wfNameInput.value.trim() || 'Unnamed';
+  const lat = readDDMField('wf-lat', true);
+  const lon = readDDMField('wf-lon', false);
+  if (lat === null || lon === null) {
+    showAlert("Enter a valid latitude/longitude, e.g. 50° 40.206' N.");
+    return;
+  }
+  const sym = wfSymSelect.value;
+  const groupSel = wfGroupSelect.value;
+
+  let groupName = null;
+  if (groupSel === '__new__') {
+    const ng = wfNewGroupInput.value.trim();
+    if (!ng) {
+      showAlert('Enter a name for the new group, or choose an existing one.');
+      return;
+    }
+    groupName = ng;
+  } else if (groupSel !== '') {
+    groupName = groupSel;
+  }
+
+  let groupGuid = null;
+  if (groupName) {
+    if (!groupGuidMap[groupName]) groupGuidMap[groupName] = genGuid();
+    groupGuid = groupGuidMap[groupName];
+  }
+
+  if (waypointFormContext.isEdit) {
+    const w = waypointFormContext.waypoint;
+    const preservedGuid = w.guid;
+    const preservedTime = w.time;
+    const preservedCmt = w.cmt;
+    deleteWaypoint(w);
+    const nw = {
+      lat, lon, name, sym,
+      time: preservedTime, cmt: preservedCmt,
+      group: groupName, guid: preservedGuid || genGuid(), groupGuid
+    };
+    gpxData.waypoints.push(nw);
+    renderWaypoint(nw);
+  } else {
+    const nw = {
+      lat, lon, name, sym,
+      time: new Date().toISOString(), cmt: null,
+      group: groupName, guid: genGuid(), groupGuid
+    };
+    gpxData.waypoints.push(nw);
+    renderWaypoint(nw);
+  }
+  endWaypointDrag(false);
+  refreshStats();
+  closeWaypointForm();
+});
+
+// Removes a waypoint's marker + sidebar row and takes it out of gpxData.
+function deleteWaypoint(w) {
+  const groupName = groupOf(w);
+  const layer = getGroupLayer(groupName);
+  if (w._marker) layer.removeLayer(w._marker);
+  if (w._item) w._item.remove();
+  bumpGroupCount(groupName, -1);
+  const idx = gpxData.waypoints.indexOf(w);
+  if (idx !== -1) gpxData.waypoints.splice(idx, 1);
+  refreshStats();
+}
+
+function editWaypoint(w) {
+  openWaypointForm({ mode: 'edit', waypoint: w });
+}
+
+// Custom dialog (reuses the shared overlay) for renaming a group and/or
+// bulk-changing the symbol of every waypoint in it.
+function showGroupEditDialog(groupName) {
+  return new Promise((resolve) => {
+    dialogInputWrap.style.display = 'none';
+    dialogActions.innerHTML = '';
+
+    const symOptions = knownSymbols.map(s => `<option value="${escapeAttr(s)}">${escapeAttr(s)}</option>`).join('');
+    dialogMessage.innerHTML = `
+      <div style="font-weight:700;color:var(--dark);margin-bottom:12px;">Edit Group</div>
+      <div class="form-field">
+        <span class="form-label">Group name</span>
+        <input type="text" id="dlg-group-name" value="${escapeAttr(groupName)}">
+      </div>
+      <div class="form-field">
+        <span class="form-label">Symbol for every waypoint in this group</span>
+        <select id="dlg-group-sym">
+          <option value="">— Leave symbols unchanged —</option>
+          ${symOptions}
+        </select>
+      </div>
+    `;
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn-cancel';
+    cancelBtn.addEventListener('click', () => { dialogOverlay.style.display = 'none'; resolve(null); });
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.textContent = 'Save';
+    saveBtn.className = 'btn-save';
+    saveBtn.addEventListener('click', () => {
+      const newName = document.getElementById('dlg-group-name').value.trim();
+      const newSym = document.getElementById('dlg-group-sym').value;
+      dialogOverlay.style.display = 'none';
+      resolve({ name: newName || groupName, sym: newSym || null });
+    });
+
+    dialogActions.appendChild(cancelBtn);
+    dialogActions.appendChild(saveBtn);
+    dialogOverlay.style.display = 'flex';
+  });
+}
+
+// Renames a group and/or bulk-updates the symbol of every member waypoint.
+// Rebuilds each member (via delete+re-render) so markers/sidebar rows and
+// the group's own section/layer/toggle all end up consistent.
+async function editGroup(groupName) {
+  const result = await showGroupEditDialog(groupName);
+  if (!result) return; // cancelled
+
+  const newName = result.name;
+  const newSym = result.sym;
+
+  if (newName !== groupName && groupSections[newName]) {
+    showAlert(`A group named "${newName}" already exists. Choose a different name.`);
+    return;
+  }
+  if (newName === groupName && !newSym) return; // nothing changed
+
+  const members = gpxData.waypoints.filter(w => groupOf(w) === groupName);
+
+  let guid = groupGuidMap[groupName] || genGuid();
+  if (newName !== groupName) {
+    delete groupGuidMap[groupName];
+  }
+  const effectiveGroup = newName === UNGROUPED ? null : newName;
+  if (effectiveGroup) groupGuidMap[newName] = guid;
+
+  members.forEach(w => deleteWaypoint(w)); // tears down markers/rows, decrements counts to 0
+
+  if (newName !== groupName) {
+    removeGroupSection(groupName); // old section is now empty — remove it
+  }
+
+  members.forEach(w => {
+    w.group = effectiveGroup;
+    w.groupGuid = effectiveGroup ? guid : null;
+    if (newSym) w.sym = newSym;
+    gpxData.waypoints.push(w);
+    renderWaypoint(w);
+  });
+
+  refreshStats();
+}
+
+async function deleteGroup(groupName) {
+  const members = gpxData.waypoints.filter(w => groupOf(w) === groupName);
+  const count = members.length;
+  const label = count === 1 ? 'waypoint' : 'waypoints';
+  const ok = await showConfirm(
+    `Delete group "${groupName}" and its ${count} ${label}?`,
+    'Delete',
+    'Cancel'
+  );
+  if (!ok) return;
+
+  members.forEach(w => deleteWaypoint(w));
+  removeGroupSection(groupName);
+  delete groupGuidMap[groupName];
+  refreshStats();
+}
+
+// Prevent clicks on the floating overlay panels from also registering as
+// map clicks (which was incorrectly adding route/waypoint points when
+// clicking buttons inside these panels).
+L.DomEvent.disableClickPropagation(document.getElementById('layer-toggle'));
+L.DomEvent.disableScrollPropagation(document.getElementById('layer-toggle'));
+L.DomEvent.disableClickPropagation(document.getElementById('left-tools'));
+L.DomEvent.disableScrollPropagation(document.getElementById('left-tools'));
+
+// Base layer toggles
+document.getElementById('chk-seamarks').addEventListener('change', e => {
+  if (e.target.checked) map.addLayer(seamarks); else map.removeLayer(seamarks);
+});
+document.getElementById('chk-routes').addEventListener('change', e => {
+  if (e.target.checked) map.addLayer(routeLayerGroup); else map.removeLayer(routeLayerGroup);
+});
+document.getElementById('chk-tracks').addEventListener('change', e => {
+  if (e.target.checked) map.addLayer(trackLayerGroup); else map.removeLayer(trackLayerGroup);
+});
+
+// =========================================================================
+// Route builder
+// =========================================================================
+const routeLayerGroup = L.layerGroup().addTo(map); // holds all saved route lines/points
+const buildLayerGroup = L.layerGroup().addTo(map); // holds the in-progress route being built
+
+let buildMode = false;
+let currentRoutePoints = []; // [{lat, lon, name, sym, time, group, guid, groupGuid}]
+let buildLine = null;
+let buildMarkers = []; // parallel array of draggable L.Marker, one per currentRoutePoints entry
+const savedRoutes = []; // {name, color, guid, points: [...]}
+let editingRoute = null; // route object temporarily pulled out of savedRoutes while being edited
+
+const routeColorPalette = ['#e67e22', '#16a085', '#d35400', '#2c3e50', '#8e44ad', '#2980b9'];
+let routeColorIndex = 0;
+
+function genGuid() {
+  const seg = () => Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0');
+  return `${seg()}-${seg()}-${seg()}-${seg()}`;
+}
+
+// Finds the still-existing waypoint (if any) that a route point's GUID
+// refers to. Used to keep route points and their source waypoints in sync.
+function findWaypointByGuid(guid) {
+  if (!guid) return null;
+  return gpxData.waypoints.find(w => w.guid === guid) || null;
+}
+
+const mapEl = document.getElementById('map');
+const btnStart = document.getElementById('btn-start-route');
+const btnFinish = document.getElementById('btn-finish-route');
+const btnUndo = document.getElementById('btn-undo-point');
+const btnCancel = document.getElementById('btn-cancel-route');
+const statusDiv = document.getElementById('route-build-status');
+const pointCountEl = document.getElementById('route-point-count');
+const pointListEl = document.getElementById('route-point-list');
+const routeNameInput = document.getElementById('route-name-input');
+
+function refreshBuildUI() {
+  pointCountEl.textContent = `${currentRoutePoints.length} point${currentRoutePoints.length === 1 ? '' : 's'}`;
+  pointListEl.innerHTML = '';
+  currentRoutePoints.forEach((p, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'route-point-chip';
+    chip.innerHTML = `<span>${i + 1}. ${p.name}</span><span class="rm" data-idx="${i}">&times;</span>`;
+    chip.querySelector('.rm').addEventListener('click', (ev) => {
+      L.DomEvent.stopPropagation(ev);
+      removeRoutePoint(i);
+    });
+    pointListEl.appendChild(chip);
+  });
+  redrawBuildLine();
+}
+
+function routePointIcon(index) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #000;
+      display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000;">${index + 1}</div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+}
+
+// Full rebuild: used whenever points are added/removed (structural changes),
+// since marker indices/tooltips need to shift.
+function redrawBuildLine() {
+  buildLayerGroup.clearLayers();
+  buildMarkers = currentRoutePoints.map((p, i) => {
+    // Snapshot the position this point entered the builder at, so we can
+    // tell later whether it's been dragged away from a linked waypoint.
+    if (p._origLat === undefined) {
+      p._origLat = p.lat;
+      p._origLon = p.lon;
+    }
+    const marker = L.marker([p.lat, p.lon], { draggable: true, icon: routePointIcon(i) }).addTo(buildLayerGroup);
+
+    marker.on('drag', (e) => {
+      const pos = e.target.getLatLng();
+      const point = currentRoutePoints[i];
+      point.lat = pos.lat;
+      point.lon = pos.lng;
+      // Points created for this route (via a click on empty chart) stay in
+      // sync with their waypoint automatically as they're dragged.
+      if (point._owned) {
+        const w = findWaypointByGuid(point.guid);
+        if (w) {
+          w.lat = point.lat;
+          w.lon = point.lon;
+          if (w._marker) w._marker.setLatLng([point.lat, point.lon]);
+        }
+      }
+      updateBuildPolyline();
+    });
+
+    marker.on('dragend', async () => {
+      const point = currentRoutePoints[i];
+      if (point._owned) return; // owned points already stay in sync during drag
+      const w = findWaypointByGuid(point.guid);
+      if (!w) return; // this point isn't linked to any existing waypoint
+      const moved = (point.lat !== point._origLat || point.lon !== point._origLon);
+      if (!moved) return;
+
+      const wname = w.name;
+      const moveWaypoint = await showConfirm(
+        `This route point was linked to waypoint "${wname}".`,
+        `Move "${wname}"`,
+        'Make independent point'
+      );
+
+      if (moveWaypoint) {
+        w.lat = point.lat;
+        w.lon = point.lon;
+        if (w._marker) w._marker.setLatLng([point.lat, point.lon]);
+        point._origLat = point.lat;
+        point._origLon = point.lon;
+      } else {
+        point.guid = genGuid();
+        point.group = null;
+        point.groupGuid = null;
+        point._origLat = point.lat;
+        point._origLon = point.lon;
+      }
+    });
+
+    return marker;
+  });
+  updateBuildPolyline();
+}
+
+// Cheap update used during dragging: only touches the connecting line, so
+// the marker being dragged is never recreated mid-gesture.
+function updateBuildPolyline() {
+  if (buildLine) {
+    buildLayerGroup.removeLayer(buildLine);
+    buildLine = null;
+  }
+  if (currentRoutePoints.length > 1) {
+    const latlngs = currentRoutePoints.map(p => [p.lat, p.lon]);
+    buildLine = L.polyline(latlngs, { color: '#000', weight: 3, dashArray: '4,6' }).addTo(buildLayerGroup);
+  }
+}
+
+function addRoutePoint(p) {
+  if (!buildMode) return;
+  currentRoutePoints.push(p);
+  refreshBuildUI();
+}
+
+function removeRoutePoint(idx) {
+  currentRoutePoints.splice(idx, 1);
+  refreshBuildUI();
+}
+
+function startRouteBuild() {
+  endWaypointAdd(); // modes are mutually exclusive
+  buildMode = true;
+  currentRoutePoints = [];
+  mapEl.classList.add('route-building');
+  statusDiv.style.display = 'block';
+  btnStart.style.display = 'none';
+  routeNameInput.value = `Route ${savedRoutes.length + 1}`;
+  refreshBuildUI();
+}
+
+function endRouteBuild() {
+  buildMode = false;
+  mapEl.classList.remove('route-building');
+  statusDiv.style.display = 'none';
+  btnStart.style.display = 'block';
+  buildLayerGroup.clearLayers();
+  buildMarkers = [];
+  buildLine = null;
+  currentRoutePoints = [];
+}
+
+btnStart.addEventListener('click', (ev) => { L.DomEvent.stopPropagation(ev); startRouteBuild(); });
+btnCancel.addEventListener('click', (ev) => {
+  L.DomEvent.stopPropagation(ev);
+  endRouteBuild();
+  if (editingRoute) {
+    // Editing was cancelled — put the original route back exactly as it was
+    savedRoutes.push(editingRoute);
+    renderSavedRoute(editingRoute);
+    editingRoute = null;
+  }
+});
+btnUndo.addEventListener('click', (ev) => {
+  L.DomEvent.stopPropagation(ev);
+  currentRoutePoints.pop();
+  refreshBuildUI();
+});
+
+btnFinish.addEventListener('click', (ev) => {
+  L.DomEvent.stopPropagation(ev);
+  if (currentRoutePoints.length < 2) {
+    showAlert('Add at least 2 points before finishing a route.');
+    return;
+  }
+  const defaultName = editingRoute ? editingRoute.name : `Route ${savedRoutes.length + 1}`;
+  const name = routeNameInput.value.trim() || defaultName;
+
+  let color, guid;
+  if (editingRoute) {
+    color = editingRoute.color;
+    guid = editingRoute.guid; // preserve identity for clean re-export
+  } else {
+    color = routeColorPalette[routeColorIndex % routeColorPalette.length];
+    routeColorIndex++;
+    guid = genGuid();
+  }
+  const route = {
+    name,
+    color,
+    guid,
+    points: currentRoutePoints.slice()
+  };
+  savedRoutes.push(route);
+  renderSavedRoute(route);
+  editingRoute = null;
+  endRouteBuild();
+});
+
+// Pulls a saved route back into the builder so its points can be added to,
+// removed, or reordered (via remove + re-add), then re-finished.
+function editRoute(route) {
+  detachSavedRoute(route);
+  editingRoute = route;
+  startRouteBuild();
+  routeNameInput.value = route.name; // startRouteBuild sets a default; override with the real name
+  currentRoutePoints = route.points.map(p => ({ ...p }));
+  refreshBuildUI();
+}
+
+// Map click during route building creates a real waypoint (Ungrouped) and
+// links the new route point to it — the link is kept even if later dragged.
+map.on('click', (e) => {
+  if (waypointFormOpen) return; // dragging the pin is the intended interaction while editing
+  if (buildMode) {
+    const n = currentRoutePoints.length + 1;
+    const newWpt = {
+      lat: e.latlng.lat, lon: e.latlng.lng,
+      name: `Point ${n}`, sym: 'Diamond',
+      time: new Date().toISOString(), cmt: null,
+      group: null, guid: genGuid(), groupGuid: null
+    };
+    gpxData.waypoints.push(newWpt);
+    renderWaypoint(newWpt);
+    refreshStats();
+    addRoutePoint({
+      lat: newWpt.lat, lon: newWpt.lon, name: newWpt.name, sym: newWpt.sym,
+      time: newWpt.time, group: newWpt.group, guid: newWpt.guid, groupGuid: newWpt.groupGuid,
+      _owned: true // created solely for this route point — dragging keeps them in sync
+    });
+  } else if (waypointAddMode) {
+    handleNewWaypointClick(e.latlng);
+  }
+});
+
+// =========================================================================
+// New waypoint / new group creation
+// =========================================================================
+let waypointAddMode = false;
+const btnNewWaypoint = document.getElementById('btn-new-waypoint');
+const btnNewGroup = document.getElementById('btn-new-group');
+const waypointHint = document.getElementById('waypoint-hint');
+const knownSymbols = ['Anchor', 'Marker', 'Filled Circle', 'Red Cross', 'Red Square',
+  'Diamond', 'Fish', 'Wreck', 'Rock', 'Reef', 'Man Overboard', 'Skull and Crossbones'];
+
+function startWaypointAdd() {
+  endRouteBuild(); // modes are mutually exclusive
+  waypointAddMode = true;
+  mapEl.classList.add('waypoint-adding');
+  waypointHint.style.display = 'block';
+  btnNewWaypoint.textContent = 'Done adding';
+}
+
+function endWaypointAdd() {
+  waypointAddMode = false;
+  mapEl.classList.remove('waypoint-adding');
+  waypointHint.style.display = 'none';
+  btnNewWaypoint.textContent = '+ New Waypoint';
+}
+
+btnNewWaypoint.addEventListener('click', () => {
+  if (waypointAddMode) endWaypointAdd(); else startWaypointAdd();
+});
+
+function handleNewWaypointClick(latlng) {
+  openWaypointForm({ mode: 'new', latlng });
+}
+
+btnNewGroup.addEventListener('click', async (ev) => {
+  L.DomEvent.stopPropagation(ev);
+  const name = await showPrompt('New group name:', '', 'Create', 'Cancel');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  if (groupSections[trimmed]) {
+    showAlert('A group with that name already exists.');
+    return;
+  }
+  groupGuidMap[trimmed] = genGuid();
+  ensureGroupSection(trimmed);
+});
+
+let routesSection = null;
+function ensureRoutesSection() {
+  if (!routesSection) {
+    const container = document.createElement('div');
+    container.className = 'group-section';
+    const header = document.createElement('h2');
+    header.innerHTML = `<span class="hdr-label">Routes (<span class="cnt">0</span>)</span>` +
+      `<span class="hdr-delete" title="Delete all routes">&times;</span>`;
+    header.querySelector('.hdr-delete').addEventListener('click', () => deleteAllRoutes());
+    container.appendChild(header);
+    const list = document.createElement('div');
+    container.appendChild(list);
+    sidebar.appendChild(container);
+    routesSection = { header, list };
+  }
+  return routesSection;
+}
+
+function updateRoutesSectionCount() {
+  if (routesSection) {
+    routesSection.header.querySelector('.cnt').textContent = savedRoutes.length;
+  }
+}
+
+// Deletes every saved route in one go. If any of their points are linked to
+// existing waypoints, asks once (not per-route) whether to delete those too.
+async function deleteAllRoutes() {
+  if (savedRoutes.length === 0) {
+    showAlert('There are no routes to delete.');
+    return;
+  }
+
+  const linked = [];
+  savedRoutes.forEach(r => r.points.forEach(p => {
+    const w = findWaypointByGuid(p.guid);
+    if (w && !linked.includes(w)) linked.push(w);
+  }));
+
+  let choice;
+  if (linked.length > 0) {
+    const label = linked.length === 1 ? 'waypoint' : 'waypoints';
+    choice = await showDialog(
+      `Delete all ${savedRoutes.length} route(s)? They have ${linked.length} linked ${label}: ${linked.map(w => w.name).join(', ')}.`,
+      [
+        { label: 'Cancel', value: 'cancel' },
+        { label: `Keep ${label}`, value: 'keep' },
+        { label: `Delete routes & ${label}`, value: 'both', danger: true }
+      ]
+    );
+  } else {
+    const ok = await showConfirm(`Delete all ${savedRoutes.length} route(s)? This cannot be undone.`, 'Delete All', 'Cancel');
+    choice = ok ? 'keep' : 'cancel';
+  }
+  if (!choice || choice === 'cancel') return;
+
+  routeLayerGroup.clearLayers();
+  savedRoutes.length = 0;
+  if (routesSection) routesSection.list.innerHTML = '';
+  updateRoutesSectionCount();
+
+  if (choice === 'both') {
+    linked.forEach(w => deleteWaypoint(w));
+  }
+}
+
+function redrawAllSavedRoutes() {
+  routeLayerGroup.clearLayers();
+  savedRoutes.forEach(r => {
+    const latlngs = r.points.map(p => [p.lat, p.lon]);
+    const line = L.polyline(latlngs, { color: r.color, weight: 3 }).addTo(routeLayerGroup);
+    line.bindPopup(`
+      <div class="popup-title">${r.name}</div>
+      <div class="popup-meta">${r.points.length} points</div>
+      <div class="popup-actions">
+        <button type="button" class="popup-edit-btn">Edit</button>
+        <button type="button" class="popup-delete-btn">Delete</button>
+      </div>
+    `);
+    line.on('popupopen', () => {
+      const el = line.getPopup().getElement();
+      if (!el) return;
+      const editBtn = el.querySelector('.popup-edit-btn');
+      const delBtn = el.querySelector('.popup-delete-btn');
+      if (editBtn) editBtn.onclick = () => { line.closePopup(); editRoute(r); };
+      if (delBtn) delBtn.onclick = async () => {
+        line.closePopup();
+        if (await showConfirm(`Delete route "${r.name}"?`, 'Delete', 'Cancel')) removeSavedRoute(r);
+      };
+    });
+    r.points.forEach(p => {
+      L.circleMarker([p.lat, p.lon], {
+        radius: 4, fillColor: r.color, color: '#fff', weight: 1, fillOpacity: 1
+      }).addTo(routeLayerGroup);
+    });
+    r._line = line;
+  });
+}
+
+// Silently detaches a route from the saved list/map/sidebar without asking
+// about linked waypoints — used when pulling a route into the builder to
+// edit it (not a real deletion).
+function detachSavedRoute(route) {
+  const idx = savedRoutes.indexOf(route);
+  if (idx !== -1) savedRoutes.splice(idx, 1);
+  if (route._item) route._item.remove();
+  redrawAllSavedRoutes();
+  updateRoutesSectionCount();
+}
+
+// Permanently deletes a route, offering to also delete any waypoints its
+// points are linked to (matched by GUID), whether created for this route
+// or picked from an existing waypoint.
+async function removeSavedRoute(route) {
+  const linkedWaypoints = [];
+  route.points.forEach(p => {
+    const w = findWaypointByGuid(p.guid);
+    if (w && !linkedWaypoints.includes(w)) linkedWaypoints.push(w);
+  });
+
+  let alsoDeleteWaypoints = false;
+  if (linkedWaypoints.length > 0) {
+    const names = linkedWaypoints.map(w => w.name).join(', ');
+    const label = linkedWaypoints.length === 1 ? 'waypoint' : 'waypoints';
+    alsoDeleteWaypoints = await showConfirm(
+      `This route has ${linkedWaypoints.length} linked ${label}: ${names}.`,
+      `Delete ${label} too`,
+      `Keep ${label}`
+    );
+  }
+
+  detachSavedRoute(route);
+
+  if (alsoDeleteWaypoints) {
+    linkedWaypoints.forEach(w => deleteWaypoint(w));
+  }
+}
+
+function renderSavedRoute(route) {
+  const section = ensureRoutesSection();
+
+  const item = document.createElement('div');
+  item.className = 'item saved-route-item';
+  item.innerHTML = `<span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+      <span class="swatch" style="background:${route.color}"></span>
+      <span class="name">${route.name}</span>
+      <span class="meta">${route.points.length} pts</span>
+    </span>
+    <span class="edit-route" title="Edit route">&#9998;</span>
+    <span class="rm-route" title="Delete route">&times;</span>`;
+  item.addEventListener('click', (ev) => {
+    if (ev.target.classList.contains('rm-route') || ev.target.classList.contains('edit-route')) return;
+    const latlngs = route.points.map(p => [p.lat, p.lon]);
+    map.fitBounds(latlngs, { padding: [40, 40] });
+    if (route._line) route._line.openPopup();
+  });
+  item.querySelector('.edit-route').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    editRoute(route);
+  });
+  item.querySelector('.rm-route').addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    if (await showConfirm(`Delete route "${route.name}"?`, 'Delete', 'Cancel')) removeSavedRoute(route);
+  });
+  route._item = item;
+  section.list.appendChild(item);
+
+  redrawAllSavedRoutes();
+  updateRoutesSectionCount();
+}
+
+// =========================================================================
+// Tracks (imported log/recorded paths — display, rename, delete)
+// =========================================================================
+const trackLayerGroup = L.layerGroup().addTo(map);
+const importedTracks = []; // {name, guid, color, segments: [[{lat,lon,time}]], _item}
+const trackColorPalette = ['#2980b9', '#27ae60', '#8e44ad', '#d35400', '#c0392b', '#16a085'];
+let trackColorIndex = 0;
+
+let tracksSection = null;
+function ensureTracksSection() {
+  if (!tracksSection) {
+    const container = document.createElement('div');
+    container.className = 'group-section';
+    const header = document.createElement('h2');
+    header.innerHTML = `<span class="hdr-label">Tracks (<span class="cnt">0</span>)</span>` +
+      `<span class="hdr-delete" title="Delete all tracks">&times;</span>`;
+    header.querySelector('.hdr-delete').addEventListener('click', () => deleteAllTracks());
+    container.appendChild(header);
+    const list = document.createElement('div');
+    container.appendChild(list);
+    sidebar.appendChild(container);
+    tracksSection = { header, list };
+  }
+  return tracksSection;
+}
+
+function updateTracksSectionCount() {
+  if (tracksSection) tracksSection.header.querySelector('.cnt').textContent = importedTracks.length;
+}
+
+async function deleteAllTracks() {
+  if (importedTracks.length === 0) {
+    showAlert('There are no tracks to delete.');
+    return;
+  }
+  const ok = await showConfirm(`Delete all ${importedTracks.length} track(s)? This cannot be undone.`, 'Delete All', 'Cancel');
+  if (!ok) return;
+
+  trackLayerGroup.clearLayers();
+  importedTracks.length = 0;
+  if (tracksSection) tracksSection.list.innerHTML = '';
+  updateTracksSectionCount();
+}
+
+function redrawAllTracks() {
+  trackLayerGroup.clearLayers();
+  importedTracks.forEach(t => {
+    t.segments.forEach(seg => {
+      const latlngs = seg.map(p => [p.lat, p.lon]);
+      const line = L.polyline(latlngs, { color: t.color, weight: 3 }).addTo(trackLayerGroup);
+      line.bindPopup(`
+        <div class="popup-title">${t.name}</div>
+        <div class="popup-meta">${seg.length} points</div>
+        <div class="popup-actions">
+          <button type="button" class="popup-edit-btn">Rename</button>
+          <button type="button" class="popup-delete-btn">Delete</button>
+        </div>
+      `);
+      line.on('popupopen', () => {
+        const el = line.getPopup().getElement();
+        if (!el) return;
+        const editBtn = el.querySelector('.popup-edit-btn');
+        const delBtn = el.querySelector('.popup-delete-btn');
+        if (editBtn) editBtn.onclick = () => { line.closePopup(); renameTrack(t); };
+        if (delBtn) delBtn.onclick = async () => {
+          line.closePopup();
+          if (await showConfirm(`Delete track "${t.name}"?`, 'Delete', 'Cancel')) removeTrack(t);
+        };
+      });
+    });
+  });
+}
+
+function removeTrack(t) {
+  const idx = importedTracks.indexOf(t);
+  if (idx !== -1) importedTracks.splice(idx, 1);
+  if (t._item) t._item.remove();
+  redrawAllTracks();
+  updateTracksSectionCount();
+}
+
+async function renameTrack(t) {
+  const newName = await showPrompt('Track name:', t.name, 'Rename', 'Cancel');
+  if (newName === null) return;
+  t.name = newName || t.name;
+  if (t._item) {
+    const nameEl = t._item.querySelector('.name');
+    if (nameEl) nameEl.textContent = t.name;
+  }
+  redrawAllTracks();
+}
+
+function renderTrack(t) {
+  const section = ensureTracksSection();
+  const totalPts = t.segments.reduce((n, s) => n + s.length, 0);
+
+  const item = document.createElement('div');
+  item.className = 'item saved-route-item';
+  item.innerHTML = `<span style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+      <span class="swatch" style="background:${t.color}"></span>
+      <span class="name">${t.name}</span>
+      <span class="meta">${totalPts} pts</span>
+    </span>
+    <span class="edit-route" title="Rename track">&#9998;</span>
+    <span class="rm-route" title="Delete track">&times;</span>`;
+  item.addEventListener('click', (ev) => {
+    if (ev.target.classList.contains('rm-route') || ev.target.classList.contains('edit-route')) return;
+    const allPts = t.segments.flat().map(p => [p.lat, p.lon]);
+    if (allPts.length) map.fitBounds(allPts, { padding: [40, 40] });
+  });
+  item.querySelector('.edit-route').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    renameTrack(t);
+  });
+  item.querySelector('.rm-route').addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    if (await showConfirm(`Delete track "${t.name}"?`, 'Delete', 'Cancel')) removeTrack(t);
+  });
+  t._item = item;
+  section.list.appendChild(item);
+  updateTracksSectionCount();
+}
+
+// =========================================================================
+// GPX import (Raymarine format)
+// =========================================================================
+const GPXNS = 'http://www.topografix.com/GPX/1/1';
+const RMNS = 'http://www.raymarine.com';
+
+function gpxText(el, tag) {
+  const e = el.getElementsByTagNameNS(GPXNS, tag)[0];
+  return e ? e.textContent.trim() : null;
+}
+function rmText(el, tag) {
+  const e = el.getElementsByTagNameNS(RMNS, tag)[0];
+  return e ? e.textContent.trim() : null;
+}
+
+function parseGpxText(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) {
+    throw new Error('File is not valid XML/GPX.');
+  }
+
+  const waypoints = Array.from(doc.getElementsByTagNameNS(GPXNS, 'wpt')).map(w => {
+    const lat = parseFloat(w.getAttribute('lat'));
+    const lon = parseFloat(w.getAttribute('lon'));
+    const ext = w.getElementsByTagNameNS(RMNS, 'WaypointExtension')[0];
+    return {
+      lat, lon,
+      name: gpxText(w, 'name') || 'Unnamed',
+      sym: gpxText(w, 'sym'),
+      time: gpxText(w, 'time'),
+      cmt: gpxText(w, 'cmt'),
+      group: ext ? rmText(ext, 'GroupName') : null,
+      guid: (ext && rmText(ext, 'GUID')) || genGuid(),
+      groupGuid: ext ? rmText(ext, 'GroupGUID') : null
+    };
+  });
+
+  const routes = Array.from(doc.getElementsByTagNameNS(GPXNS, 'rte')).map(r => {
+    const rext = r.getElementsByTagNameNS(RMNS, 'RouteExtension')[0];
+    const points = Array.from(r.getElementsByTagNameNS(GPXNS, 'rtept')).map(p => {
+      const pext = p.getElementsByTagNameNS(RMNS, 'RoutePointExtension')[0];
+      return {
+        lat: parseFloat(p.getAttribute('lat')),
+        lon: parseFloat(p.getAttribute('lon')),
+        name: gpxText(p, 'name') || 'Point',
+        sym: gpxText(p, 'sym') || 'Diamond',
+        time: gpxText(p, 'time'),
+        group: pext ? rmText(pext, 'GroupName') : null,
+        guid: (pext && rmText(pext, 'GUID')) || genGuid(),
+        groupGuid: pext ? rmText(pext, 'GroupGUID') : null
+      };
+    });
+    return {
+      name: gpxText(r, 'name') || 'Route',
+      guid: (rext && rmText(rext, 'GUID')) || genGuid(),
+      points
+    };
+  });
+
+  const tracks = Array.from(doc.getElementsByTagNameNS(GPXNS, 'trk')).map(trk => {
+    const segments = Array.from(trk.getElementsByTagNameNS(GPXNS, 'trkseg'))
+      .map(seg => Array.from(seg.getElementsByTagNameNS(GPXNS, 'trkpt')).map(p => ({
+        lat: parseFloat(p.getAttribute('lat')),
+        lon: parseFloat(p.getAttribute('lon')),
+        time: gpxText(p, 'time')
+      })));
+    return {
+      name: gpxText(trk, 'name') || 'Track',
+      guid: genGuid(),
+      segments
+    };
+  });
+
+  return { waypoints, routes, tracks };
+}
+
+// Wipes every waypoint, route, group and map layer so a fresh file can be
+// loaded in. Does not touch base map layers (OSM/seamarks).
+function resetAllData() {
+  endRouteBuild();
+  endWaypointAdd();
+
+  Object.values(groupLayers).forEach(l => l.clearLayers());
+  routeLayerGroup.clearLayers();
+  buildLayerGroup.clearLayers();
+  trackLayerGroup.clearLayers();
+
+  sidebar.innerHTML = '';
+  document.getElementById('group-toggles').innerHTML = '';
+
+  gpxData.waypoints = [];
+  savedRoutes.length = 0;
+  importedTracks.length = 0;
+  routesSection = null;
+  tracksSection = null;
+  nextGroupColorIndex = 0;
+  trackColorIndex = 0;
+
+  Object.keys(groupSections).forEach(k => delete groupSections[k]);
+  Object.keys(groupLayers).forEach(k => delete groupLayers[k]);
+  Object.keys(groupGuidMap).forEach(k => delete groupGuidMap[k]);
+}
+
+async function importGpxText(text, filename) {
+  const parsed = parseGpxText(text);
+  if (parsed.waypoints.length === 0 && parsed.routes.length === 0 && parsed.tracks.length === 0) {
+    showAlert('No waypoints, routes or tracks were found in that GPX file.');
+    return;
+  }
+
+  const hasExisting = gpxData.waypoints.length > 0 || savedRoutes.length > 0 || importedTracks.length > 0;
+  let mode = 'replace';
+  if (hasExisting) {
+    mode = await showDialog(
+      'This viewer already has data loaded. How should the imported GPX file be applied?',
+      [
+        { label: 'Cancel', value: 'cancel' },
+        { label: 'Merge', value: 'merge', primary: true },
+        { label: 'Replace All', value: 'replace', danger: true }
+      ]
+    );
+    if (mode === 'cancel' || !mode) return;
+  }
+
+  // Generic (non-Raymarine) GPX files carry no group info at all — group
+  // those waypoints together under "Imported" rather than leaving them
+  // scattered as individually-ungrouped entries.
+  const anyGroups = parsed.waypoints.some(w => w.group);
+  if (!anyGroups && parsed.waypoints.length > 0) {
+    const importedGroupGuid = genGuid();
+    parsed.waypoints.forEach(w => {
+      w.group = 'Imported';
+      w.groupGuid = importedGroupGuid;
+    });
+  }
+
+  if (mode === 'replace') {
+    resetAllData();
+  }
+
+  parsed.waypoints.forEach(w => {
+    if (w.group && w.groupGuid && !groupGuidMap[w.group]) {
+      groupGuidMap[w.group] = w.groupGuid;
+    }
+    gpxData.waypoints.push(w);
+    renderWaypoint(w);
+  });
+
+  parsed.routes.forEach(route => {
+    route.color = routeColorPalette[routeColorIndex % routeColorPalette.length];
+    routeColorIndex++;
+    savedRoutes.push(route);
+    renderSavedRoute(route);
+  });
+
+  parsed.tracks.forEach(t => {
+    t.color = trackColorPalette[trackColorIndex % trackColorPalette.length];
+    trackColorIndex++;
+    importedTracks.push(t);
+    renderTrack(t);
+  });
+  redrawAllTracks();
+
+  refreshStats();
+
+  const allPts = [];
+  gpxData.waypoints.forEach(w => allPts.push([w.lat, w.lon]));
+  savedRoutes.forEach(r => r.points.forEach(p => allPts.push([p.lat, p.lon])));
+  importedTracks.forEach(t => t.segments.forEach(seg => seg.forEach(p => allPts.push([p.lat, p.lon]))));
+  if (allPts.length) map.fitBounds(allPts, { padding: [30, 30] });
+}
+
+const fileImportInput = document.getElementById('file-import');
+document.getElementById('btn-import-gpx').addEventListener('click', () => fileImportInput.click());
+fileImportInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try {
+      await importGpxText(ev.target.result, file.name);
+    } catch (err) {
+      showAlert('Could not import this file: ' + err.message);
+    }
+  };
+  reader.onerror = () => showAlert('Could not read that file.');
+  reader.readAsText(file);
+  fileImportInput.value = ''; // allow re-selecting the same file later
+});
+
+// --- GPX export in Raymarine format (waypoints + any built routes) ---
+function xmlEscape(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+function buildGpxString(opts) {
+  const includeWaypoints = opts && opts.includeWaypoints !== undefined ? opts.includeWaypoints : true;
+  const includeRoutes = opts && opts.includeRoutes !== undefined ? opts.includeRoutes : true;
+  const includeTracks = opts && opts.includeTracks !== undefined ? opts.includeTracks : true;
+
+  const lines = [];
+  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
+  lines.push('<gpx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.1" ' +
+    'xmlns="http://www.topografix.com/GPX/1/1" creator="Raymarine" ' +
+    'xmlns:raymarine="http://www.raymarine.com" ' +
+    'xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd ' +
+    'http://www.raymarine.com http://www.raymarine.com/gpx_schema/RaymarineGPXExtensions.xsd">');
+
+  if (includeWaypoints) {
+    gpxData.waypoints.forEach(w => {
+      lines.push(` <wpt lon="${w.lon}" lat="${w.lat}">`);
+      if (w.time) lines.push(`  <time>${xmlEscape(w.time)}</time>`);
+      lines.push(`  <name>${xmlEscape(w.name)}</name>`);
+      lines.push(`  <sym>${xmlEscape(w.sym || '')}</sym>`);
+      lines.push('  <psym>Red Cross</psym>');
+      if (w.cmt) lines.push(`  <cmt>${xmlEscape(w.cmt)}</cmt>`);
+      lines.push('  <extensions>');
+      lines.push('   <raymarine:WaypointExtension>');
+      lines.push(`    <raymarine:GUID>${w.guid || genGuid()}</raymarine:GUID>`);
+      if (w.group) {
+        lines.push(`    <raymarine:GroupGUID>${w.groupGuid}</raymarine:GroupGUID>`);
+        lines.push(`    <raymarine:GroupName>${xmlEscape(w.group)}</raymarine:GroupName>`);
+      }
+      lines.push('   </raymarine:WaypointExtension>');
+      lines.push('  </extensions>');
+      lines.push(' </wpt>');
+    });
+  }
+
+  if (includeRoutes) {
+    savedRoutes.forEach(route => {
+      lines.push(' <rte>');
+      lines.push(`  <name>${xmlEscape(route.name)}</name>`);
+      lines.push('  <extensions>');
+      lines.push('   <raymarine:RouteExtension>');
+      lines.push(`    <raymarine:GUID>${route.guid}</raymarine:GUID>`);
+      lines.push('   </raymarine:RouteExtension>');
+      lines.push('  </extensions>');
+      route.points.forEach(p => {
+        lines.push(`  <rtept lon="${p.lon}" lat="${p.lat}">`);
+        if (p.time) lines.push(`   <time>${xmlEscape(p.time)}</time>`);
+        lines.push(`   <name>${xmlEscape(p.name)}</name>`);
+        lines.push(`   <sym>${xmlEscape(p.sym || 'Diamond')}</sym>`);
+        lines.push('   <psym>Red Cross</psym>');
+        lines.push('   <extensions>');
+        lines.push('    <raymarine:RoutePointExtension>');
+        lines.push(`     <raymarine:GUID>${p.guid || genGuid()}</raymarine:GUID>`);
+        if (p.group) {
+          lines.push(`     <raymarine:GroupGUID>${p.groupGuid}</raymarine:GroupGUID>`);
+          lines.push(`     <raymarine:GroupName>${xmlEscape(p.group)}</raymarine:GroupName>`);
+        }
+        lines.push('    </raymarine:RoutePointExtension>');
+        lines.push('   </extensions>');
+        lines.push('  </rtept>');
+      });
+      lines.push(' </rte>');
+    });
+  }
+
+  if (includeTracks) {
+    importedTracks.forEach(t => {
+      lines.push(' <trk>');
+      lines.push(`  <name>${xmlEscape(t.name)}</name>`);
+      t.segments.forEach(seg => {
+        lines.push('  <trkseg>');
+        seg.forEach(p => {
+          lines.push(`   <trkpt lon="${p.lon}" lat="${p.lat}">`);
+          if (p.time) lines.push(`    <time>${xmlEscape(p.time)}</time>`);
+          lines.push('   </trkpt>');
+        });
+        lines.push('  </trkseg>');
+      });
+      lines.push(' </trk>');
+    });
+  }
+
+  lines.push('</gpx>');
+  return lines.join('\n') + '\n';
+}
+
+function downloadGpx(gpxString, filenameSuffix) {
+  const blob = new Blob([gpxString], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `RaymarineGPX_${stamp}_${filenameSuffix}.gpx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('btn-export-all').addEventListener('click', () => {
+  downloadGpx(buildGpxString({ includeWaypoints: true, includeRoutes: true, includeTracks: true }), 'all');
+});
+
+document.getElementById('btn-export-routes').addEventListener('click', () => {
+  if (savedRoutes.length === 0) {
+    showAlert('No routes have been built yet.');
+    return;
+  }
+  downloadGpx(buildGpxString({ includeWaypoints: false, includeRoutes: true, includeTracks: false }), 'routes');
+});
+
+document.getElementById('btn-export-waypoints').addEventListener('click', () => {
+  downloadGpx(buildGpxString({ includeWaypoints: true, includeRoutes: false, includeTracks: false }), 'waypoints');
+});
+
+// --- Initial render (runs last so it can safely reference everything above) ---
+orderedGroups.forEach(groupName => {
+  ensureGroupSection(groupName);
+});
+gpxData.waypoints.forEach(renderWaypoint);
+refreshStats();
+
+</script>
+</body>
+</html>
