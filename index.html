@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Raymarine GPX Manager</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#464648">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GPX Manager">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -2224,6 +2231,14 @@ orderedGroups.forEach(groupName => {
 });
 gpxData.waypoints.forEach(renderWaypoint);
 refreshStats();
+
+// Register service worker for offline app-shell support (PWA / "Add to
+// Home Screen" on iOS). Safe no-op if the browser doesn't support it.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
 
 </script>
 </body>

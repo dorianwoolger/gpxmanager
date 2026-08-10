@@ -1,0 +1,25 @@
+{
+  "name": "Nairod GPX Manager",
+  "short_name": "GPX Manager",
+  "description": "Raymarine GPX waypoint, route, and track manager",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#464648",
+  "theme_color": "#464648",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
