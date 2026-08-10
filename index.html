@@ -516,6 +516,72 @@
     color: var(--dark);
     font-weight: 700;
   }
+
+  /* Mobile: turn the always-visible floating panels into on-demand
+     bottom-sheet drawers, opened via two small floating buttons, so they
+     don't permanently cover the chart on small screens. */
+  .mobile-fab {
+    display: none;
+  }
+  .mobile-close-btn {
+    display: none;
+  }
+  @media (max-width: 700px) {
+    .mobile-fab {
+      display: block;
+      position: absolute;
+      z-index: 2600;
+      background: var(--dark);
+      color: #fff;
+      border: none;
+      border-radius: 22px;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      cursor: pointer;
+    }
+    #mobile-layers-toggle { top: 12px; right: 12px; }
+    #mobile-tools-toggle { bottom: 12px; left: 12px; }
+
+    #layer-toggle, #left-tools {
+      display: none; /* hidden until opened via the FAB */
+    }
+    #layer-toggle.mobile-open, #left-tools.mobile-open {
+      display: block;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: auto;
+      width: 100%;
+      max-width: 100%;
+      max-height: 75vh;
+      overflow-y: auto;
+      border-radius: 14px 14px 0 0;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+      z-index: 2550;
+      padding: 16px 16px 24px;
+      box-sizing: border-box;
+    }
+    #left-tools.mobile-open {
+      display: flex;
+      gap: 12px;
+    }
+    .mobile-close-btn {
+      display: block;
+      width: 100%;
+      background: #eee;
+      color: var(--dark);
+      border: none;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -527,6 +593,7 @@
   <div id="main">
     <div id="map">
       <div id="layer-toggle">
+        <button type="button" class="mobile-close-btn" id="layer-toggle-close">Close &times;</button>
         <div class="section-label">Chart</div>
         <label><input type="checkbox" id="chk-seamarks" checked> Seamarks (OpenSeaMap)</label>
         <div class="section-label">Overlays</div>
@@ -536,6 +603,7 @@
         <div id="group-toggles"></div>
       </div>
       <div id="left-tools">
+      <button type="button" class="mobile-close-btn" id="left-tools-close">Close &times;</button>
       <div id="import-panel">
         <div class="section-label">Import</div>
         <input type="file" id="file-import" accept=".gpx" style="display:none">
@@ -633,6 +701,8 @@
         <button id="btn-export-waypoints">Export Waypoints</button>
       </div>
       </div>
+      <button type="button" class="mobile-fab" id="mobile-layers-toggle">&#9776; Layers</button>
+      <button type="button" class="mobile-fab" id="mobile-tools-toggle">&#128736; Tools</button>
     </div>
     <div id="sidebar"></div>
   </div>
@@ -1305,6 +1375,34 @@ L.DomEvent.disableClickPropagation(document.getElementById('layer-toggle'));
 L.DomEvent.disableScrollPropagation(document.getElementById('layer-toggle'));
 L.DomEvent.disableClickPropagation(document.getElementById('left-tools'));
 L.DomEvent.disableScrollPropagation(document.getElementById('left-tools'));
+
+// =========================================================================
+// Mobile drawers — on narrow screens the panels above are hidden until
+// opened via one of these two floating buttons, so they don't permanently
+// cover the chart. Desktop is unaffected (the CSS only applies < 700px).
+// =========================================================================
+const mobileLayersToggle = document.getElementById('mobile-layers-toggle');
+const mobileToolsToggle = document.getElementById('mobile-tools-toggle');
+const layerTogglePanel = document.getElementById('layer-toggle');
+const leftToolsPanel = document.getElementById('left-tools');
+
+L.DomEvent.disableClickPropagation(mobileLayersToggle);
+L.DomEvent.disableClickPropagation(mobileToolsToggle);
+
+mobileLayersToggle.addEventListener('click', () => {
+  leftToolsPanel.classList.remove('mobile-open'); // only one drawer open at a time
+  layerTogglePanel.classList.toggle('mobile-open');
+});
+mobileToolsToggle.addEventListener('click', () => {
+  layerTogglePanel.classList.remove('mobile-open');
+  leftToolsPanel.classList.toggle('mobile-open');
+});
+document.getElementById('layer-toggle-close').addEventListener('click', () => {
+  layerTogglePanel.classList.remove('mobile-open');
+});
+document.getElementById('left-tools-close').addEventListener('click', () => {
+  leftToolsPanel.classList.remove('mobile-open');
+});
 
 // Base layer toggles
 document.getElementById('chk-seamarks').addEventListener('change', e => {
